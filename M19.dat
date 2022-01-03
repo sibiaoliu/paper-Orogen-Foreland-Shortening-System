@@ -1,0 +1,386 @@
+# Model setup - M19
+nel_x				=   768
+nel_y				=   4
+nel_z				=   768
+
+# Geometry
+units                           	=	geo    # geology units
+Characteristic.Length		=	1e5    # [m]				
+Characteristic.Viscosity 		=	1e20   # [Pa s]	
+Characteristic.Temperature	=	1000   # [K]		
+Characteristic.Stress      	=   	1e11   # [Pa]			
+
+W				=	400	# Width  (x-direction)
+L				=   	4	# Length (y-direction)
+H				=	410	# Height (z-direction)
+
+x_left				=	0 	# Left side of domain
+y_front				=	0     # Front side of domain
+z_bot				=	-400  # Bottom of box
+
+# Phase distribution
+NumPartX				=	3   	# Particles/Cell in x-direction
+NumPartY				=	3   	# Particles/Cell in y-direction
+NumPartZ				=	3     # Particles/Cell in z-direction
+
+# Properties that are defined over the whole domain:
+Gravity				=  	-10;	# [m/s2] - gravitational acceleration 
+
+# --- Model setup and noise ---
+msetup                        	= 	parallel
+ParticleFilename              	= 	Particles
+LoadInitialParticlesDirectory 	= 	MatlabInputParticles
+
+# Define input/output and numerics-related stuff
+OutputFile			=	Output-M19	
+save_timesteps			=	20       # save every ? timesteps
+time_end				=	1701	# last timestep
+CFL				=	0.5	# CFL, dt-based criterium
+dt_max				=	0.1	# Maximum timestep [Myrs]
+save_breakpoints		         = 	50
+
+Temp_top	    		=   0
+Temp_bottom		=   1460
+
+AddPushing               =   1               # 1 - pushing; 0 - no pushing;
+
+<PushingBlockStart>
+    PushID              =   0                   # pushing block id
+    num_changes         =   1                   # no. of changes in the pushing direction
+    time                =   0 50                # Time segments [Myr] as an array
+    V_push              =   -2.0                # [cm/yr] as an array
+    dir                 =   1                   # preferred direction of pushing: 0-rotation, 1-Vx direction, 2-Vy direction
+    omega               =   0                   # rate of rotation [deg/Myr] as an array
+    coord_advect        =   0                   # 0 - fixed pushing block, 1 - moving pushing block
+    reset_pushing_coord =   0                   # 0 - no reset, 1 - reset pushing coord every timestep
+    theta               =   0                   # angle from which rotation should start
+    L_block             =   50                  # Length (x-direction) [km]
+    W_block             =   4                   # Length (y-direction) [km]
+    H_block             =   90                  # Length (z-direction) [km]
+    x_center_block      =   420                 # Coordinates of x center [km]
+    y_center_block      =   2                   # Coordinates of y center [km]
+    z_center_block      =   -35                 # Coordinates of z center [km]
+<PushingBlockEnd>
+
+<PushingBlockStart>
+    PushID              =   1
+    num_changes         =   1
+    time                =   0 50
+    V_push              =   -0.6
+    dir                 =   1
+    omega               =   0
+    coord_advect        =   0
+    reset_pushing_coord =   0
+    theta               =   0
+    L_block             =   50
+    W_block             =   4
+    H_block             =   300
+    x_center_block      =   -20
+    y_center_block      =   2
+   z_center_block       =   -250
+<PushingBlockEnd>
+
+#===============================================================================
+# ............................ PETSc options ...................................
+#===============================================================================
+
+<PetscOptionsStart>
+	-snes_monitor			
+	-snes_atol 1e-4
+	-snes_rtol 1e-5
+	-snes_stol 1e-16
+	-snes_max_it 10
+	-snes_max_funcs 500000
+	-snes_max_linear_solve_fail 10000
+	-snes_PicardSwitchToNewton_rtol 1e-3
+	-snes_NewtonSwitchToPicard_it  	20
+	-snes_NewtonSwitchToPicard_rtol 1.1
+	
+	-snes_linesearch_monitor
+	-snes_linesearch_type l2
+	-snes_linesearch_maxstep 1.0
+	
+	-js_ksp_type fgmres
+	-js_ksp_max_it 30 
+	-js_ksp_converged_reason
+	-js_ksp_monitor
+	-js_ksp_rtol 1e-5
+	-js_ksp_atol 1e-4
+	-pstokes mg
+	-pcmat_type mono
+	-pcmat_no_dev_proj
+	-jp_type mg
+	
+	# Multigrid preconditioner settings
+	-gmg_pc_type mg
+	-gmg_pc_mg_levels 3
+	-gmg_pc_mg_galerkin
+	-gmg_pc_mg_type multiplicative
+	-gmg_pc_mg_cycle_type v
+	-gmg_pc_mg_log
+	
+	-gmg_mg_levels_ksp_type richardson
+	-gmg_mg_levels_ksp_richardson_scale 0.2
+	-gmg_mg_levels_pc_type jacobi
+	-gmg_mg_levels_ksp_max_it 5
+	
+	-crs_ksp_type preonly
+	-crs_pc_type redundant
+	-crs_pc_redundant_number 4
+	-crs_redundant_pc_factor_mat_solver_package superlu_dist
+    
+	-InitViscosity 1e20 
+	-div_tol 1e6
+	-use_fdstag_canonical
+	
+	-restart 1
+	-res_log 1
+        -log_view
+        -new_advection
+	-advection 1
+	-velinterp 2
+	
+         -use_marker_control
+	-markers_min 16
+	-markers_max 200
+	-act_temp_diff
+	
+	# internal free surface
+	-surf_use        1
+	-surf_level      0
+	-surf_air_phase  0
+	-FSSA 1.0
+         -surf_max_angle  45.0
+	
+	-out_surf_pvd        1
+	-out_surf_velocity   1
+	-out_surf_topography 1
+	-out_surf_amplitude  1
+	
+	-out_pvd 1
+        -out_phase 1
+        -out_density 1
+        -out_viscosity 1
+        -out_velocity 1
+        -out_pressure 1
+        -out_dev_stress 1
+        -out_j2_dev_stress 1
+        -out_strain_rate 1
+        -out_j2_strain_rate 1
+        -out_temperature 1
+        -out_plast_strain 1
+        -out_tot_strain 1
+        -out_tot_displ 1
+        -out_plast_dissip 1
+        -out_lithospressure 1
+        -out_visc_viscoplastic 1
+        -out_overpressure 1
+<PetscOptionsEnd>
+
+#===============================================================================
+# ............................ Material Parameters .............................
+#===============================================================================
+
+# viscosity cutoff and initial strain-rate guess
+LowerViscosityCutoff		=	1e19
+UpperViscosityCutoff		=	1e24
+DII_ref                         	= 	1e-15    
+
+  	# --------------------------
+	# SOFT LAW [0]
+  	# --------------------------
+	<SofteningStart>
+		softID 		=	0	# softening law id  [-]
+		A                = 	0.8	# softening ratio
+		APS1        	= 	0.5	# start softening
+		APS2        	=	1.5	# end softening
+	<SofteningEnd>
+	
+	<SofteningStart>
+                softID            =       1      # softening law id  [-]
+                A                 =       0.95   # softening ratio
+                APS1              =       0.5    # start softening
+                APS2              =       1.5    # end softening
+        <SofteningEnd>
+
+    # ------------------- Air phase [0]-------------------
+    <MaterialStart>
+    	ID   	= 	0		# phase id  [-]
+    	rho0 	= 	1		#density - if dimensional [kg/m3]
+    	eta		= 	1e19	# ref.  viscosity - if dimensional [Pa.s]
+    	alpha 		=	0	# coeff.  of thermal expansion - if dimensional [1/K]
+    	k		= 	100	# thermal conductivity - if dimensional [W/m/K]
+    	cp		=	1e6	# heat capacity - if dimensional [J/kg/K]
+    	A		=	0	# radiogenic heat production - if dimensional [W/kg]
+    <MaterialEnd>
+    
+     # ------------------- Asthenosphere [1]-------------------
+    <MaterialStart>
+    	ID   	= 	1		# phase id  [-]
+    	rho0 	= 	3300		#density - if dimensional [kg/m3]
+    
+    	diff_profile = Wet_Olivine_diff_creep-Hirth_Kohlstedt_2003_constant_C_OH
+    	disl_profile = Wet_Olivine_disl_creep-Hirth_Kohlstedt_2003_constant_C_OH
+    	peir_profile = Olivine_Peierls-Kameyama_1999
+    
+    	shear        	= 	122.74e9	# elastic shear modulus - if dimensional [Pa]
+    	cohesion        	= 	40e6	# cohesion - if dimensional [Pa]
+    	friction		= 	30	# friction angle - if dimensional [deg]
+    
+    	alpha 		=	3e-5	# coeff.  of thermal expansion - if dimensional [1/K]
+    	k		= 	3.3	# ithermal conductivity - if dimensional [W/m/K]
+    	cp		=	1200	# heat capacity - if dimensional [J/kg/K]
+    	A		=	0	# radiogenic heat production - if dimensional [W/kg]
+    <MaterialEnd>
+
+   # ------------------- Plateau-continental lithospheric mantle [2] -------------------
+    <MaterialStart>
+                ID      =       2               # phase id  [-]
+                rho0    =       3300            #density - if dimensional [kg/m3]
+    
+    	diff_profile = Dry_Olivine_diff_creep-Hirth_Kohlstedt_2003
+    	disl_profile = Dry_Olivine_disl_creep-Hirth_Kohlstedt_2003
+    	peir_profile = Olivine_Peierls-Kameyama_1999
+    
+    	shear        	= 	122.74e9	# elastic shear modulus - if dimensional [Pa]
+    	cohesion        	= 	40e6	# cohesion - if dimensional [Pa]
+    	friction		= 	30	# friction angle - if dimensional [deg]
+    
+    	alpha 		=	3e-5	# coeff.  of thermal expansion - if dimensional [1/K]
+    	k		= 	3.3	# thermal conductivity - if dimensional [W/m/K]
+    	cp		=	1200	# heat capacity - if dimensional [J/kg/K]
+    	A		=	0	# radiogenic heat production - if dimensional [W/kg]
+    <MaterialEnd>
+
+  # ------------------- Plateau-continental lower crust [3]-------------------
+    <MaterialStart>
+                ID      =       3               # phase id  [-]
+                rho0    =       3000            #density - if dimensional [kg/m3]
+    
+                n                      =       4.7       # power-law exponent [-]
+                Bn                     =       5.78e-27       # disl. creep coeff
+                En                     =       485e3       # activation energy - if dimensional [J/mol]
+                Vn                     =       0       # activation volume - if dimensional [cm3/mol]
+    
+                shear                  =       63.4e9    # elastic shear modulus - if dimensional [Pa]
+                cohesion               =       40e6     # cohesion - if dimensional [Pa]
+                friction               =       30      # friction angle - if dimensional [deg]
+    
+                alpha                  =       2.7e-5       # coeff.  of thermal expansion - if dimensional [1/K]
+                k                      =       2.5       # thermal conductivity - if dimensional [W/m/K]
+                cp                     =       1200    # heat capacity - if dimensional [J/kg/K]
+                A                      =       1e-10       # radiogenic heat production - if dimensional [W/kg]
+        <MaterialEnd>
+
+  # ------------------- Plateau-continental Upper-mid crust [4]-------------------
+    <MaterialStart>
+                ID      =       4               # phase id  [-]
+                rho0    =       2800            #density - if dimensional [kg/m3]
+    
+                # dislocation creep(Wet quartzite,Gleason&Tullis,1995) f=1
+                n                      =       4       # power-law exponent [-]
+                Bn                     =       8.57e-28       # disl. creep coeff
+                En                     =       223e3       # activation energy - if dimensional [J/mol]
+                Vn                     =       0       # activation volume - if dimensional [cm3/mol]
+    
+                shear                  =       55.36e9    # elastic shear modulus - if dimensional [Pa]
+                cohesion               =       20e6     # cohesion - if dimensional [Pa]
+                friction               =       30      # friction angle - if dimensional [deg]
+                chSoftID               =       1       # softening law id - for cohesion
+                frSoftID               =       0       # softening law id - for friction angle
+    
+                alpha                  =      3.7e-5       # coeff.  of thermal expansion - if dimensional [1/K]
+                k                      =       2.5       # thermal conductivity - if dimensional [W/m/K]
+                cp                     =       1200    # heat capacity - if dimensional [J/kg/K]
+                A                      =      3.5e-10       # radiogenic heat production - if dimensional [W/kg]
+        <MaterialEnd>
+
+  # ------------------- Shield-continental lithospheric mantle [5] -------------------
+    <MaterialStart>
+                ID      =       5               # phase id  [-]
+                rho0    =       3300            #density - if dimensional [kg/m3]
+    
+                diff_profile = Dry_Olivine_diff_creep-Hirth_Kohlstedt_2003
+                disl_profile = Dry_Olivine_disl_creep-Hirth_Kohlstedt_2003
+                peir_profile = Olivine_Peierls-Kameyama_1999
+
+                shear                   =       122.74e9        # elastic shear modulus - if dimensional [Pa]
+                cohesion                =       40e6    # cohesion - if dimensional [Pa]
+                friction                =       30      # friction angle - if dimensional [deg]
+ 
+                alpha                   =       3e-5    # coeff.  of thermal expansion - if dimensional [1/K]
+                k                       =       3.3     # thermal conductivity - if dimensional [W/m/K]
+                cp                      =       1200    # heat capacity - if dimensional [J/kg/K]
+                A                       =       0       # radiogenic heat production - if dimensional [W/kg]
+        <MaterialEnd>
+
+  # ------------------- Shield-continental lower crust [6]-------------------
+    <MaterialStart>
+                ID      =       6               # phase id  [-]
+                rho0    =       3000            #density - if dimensional [kg/m3]
+
+                # dislocation creep(Maryland dry diabase,Mackwell etal,1998) f=1
+                n                      =       4.7       # power-law exponent [-]
+                Bn                     =       5.78e-27       # disl. creep coeff
+                En                     =       485e3       # activation energy - if dimensional [J/mol]
+                Vn                     =       0       # activation volume - if dimensional [cm3/mol]
+
+                shear                  =       63.4e9    # elastic shear modulus - if dimensional [Pa]
+                cohesion               =       40e6     # cohesion - if dimensional [Pa]
+                friction               =       30      # friction angle - if dimensional [deg]
+ 
+                alpha                  =       2.7e-5       # coeff.  of thermal expansion - if dimensional [1/K]
+                k                      =       2.5       # thermal conductivity - if dimensional [W/m/K]
+                cp                     =       1200    # heat capacity - if dimensional [J/kg/K]
+                A                      =       1e-10       # radiogenic heat production - if dimensional [W/m3]
+        <MaterialEnd>
+
+  # ------------------- Shield-continental Upper-mid crust [7]-------------------
+    <MaterialStart>
+                ID      =       7               # phase id  [-]
+                rho0    =       2800            #density - if dimensional [kg/m3]
+
+                # dislocation creep(Wet quartzite,Gleason&Tullis,1995) f=1
+                n                      =       4       # power-law exponent [-]
+                Bn                     =       8.57e-28       # disl. creep coeff
+                En                     =       223e3       # activation energy - if dimensional [J/mol]
+                Vn                     =       0       # activation volume - if dimensional [cm3/mol]
+
+                shear                  =       55.36e9    # elastic shear modulus - if dimensional [Pa]
+                cohesion               =       20e6     # cohesion - if dimensional [Pa]
+                friction               =       30      # friction angle - if dimensional [deg]
+                # plasticity - strain weakening
+                chSoftID               =       1       # softening law id - for cohesion
+                frSoftID               =       0       # softening law id - for friction angle
+
+                alpha                  =      3.7e-5       # coeff.  of thermal expansion - if dimensional [1/K]
+                k                      =       2.5       # thermal conductivity - if dimensional [W/m/K]
+                cp                     =       1200    # heat capacity - if dimensional [J/kg/K]
+                A                      =      3.5e-10       # radiogenic heat production - if dimensional [W/m3]
+        <MaterialEnd>
+
+   # -------------------Shield-Continental Sediment cover - WEAK [8]-------------------
+        <MaterialStart>
+                ID      =       8               # phase id  [-]
+                rho0    =       2500            #density - if dimensional [kg/m3]
+     
+                #disl_profile = Wet_Quarzite-Ranalli_1995; Another Opition
+                n                      =       4       # power-law exponent [-]
+                Bn                     =       8.57e-28       # disl. creep coeff
+                En                     =       223e3       # activation energy - if dimensional [J/mol]
+                Vn                     =       0       # activation volume - if dimensional [cm3/mol]
+
+                shear                  =       55.36e9        # elastic shear modulus - if dimensional [Pa]
+                cohesion               =       1e6    # cohesion - if dimensional [Pa]
+                friction               =       3      # friction angle - if dimensional [deg]
+                # plasticity - strain weakening
+#                chSoftID               =       1       # softening law id - for cohesion
+#                frSoftID               =       0       # softening law id - for friction angle
+    
+                alpha                  =       3.7e-5    # coeff.  of thermal expansion - if dimensional [1/K]
+                k                      =       2.5     # thermal conductivity - if dimensional [W/m/K]
+                cp                     =       1200    # heat capacity - if dimensional [J/kg/K]
+                A                      =       3.7e-10       # radiogenic heat production - if dimensional [W/m3]
+        <MaterialEnd>
+
+# End of defining material properties for all phases ----------------------------------------
